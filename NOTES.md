@@ -1,4 +1,12 @@
 # CV Project
+- Overleaf link: https://cs.overleaf.com/8893629753dnjfpjwvpfhq
+- Dataset links:
+	- Smíchoff (Czech Republic):
+		- raw: https://tom.ggu.cz/cv-sm-data/
+		- downsized: https://tom.ggu.cz/cv-sm-data-downsized/
+	- Boulderhaus (Germany):
+		- raw: https://tom.ggu.cz/cv-bh-data/
+		- downsized: https://tom.ggu.cz/cv-bh-data-downsized/
 
 ## Data Annotation
 - https://labelstud.io/
