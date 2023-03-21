@@ -1,4 +1,4 @@
-ml/cv-bh-data/**/*.jpg
-ml/cv-sm-data/**/*.jpg
+data/**/*.jpg
+**/.DS_Store
 ml/output
 via
