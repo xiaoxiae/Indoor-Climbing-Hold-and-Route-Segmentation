@@ -1,0 +1,5 @@
+imantics
+matplotlib
+numpy
+opencv-python
+pandas
