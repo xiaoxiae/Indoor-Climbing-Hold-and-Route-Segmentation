@@ -1,0 +1,2 @@
+- needs fine-tuning parameters that change from image to image
+- useful only for clear holds that have clear boundaries
