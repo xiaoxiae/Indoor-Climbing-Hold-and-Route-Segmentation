@@ -7,17 +7,16 @@
 	- Boulderhaus (Germany):
 		- raw: https://tom.ggu.cz/cv-bh-data/
 		- downsized: https://tom.ggu.cz/cv-bh-data-downsized/
+		- phone: https://tom.ggu.cz/cv-bh-data-phone/
 
 ## Data Annotation
-- https://labelstud.io/
 - https://www.robots.ox.ac.uk/~vgg/software/via/
 
 
 ## Related Papers/Repos
-- https://kastner.ucsd.edu/ryan/wp-content/uploads/sites/5/2022/06/admin/rock-climbing-coach.pdf
-- https://stacks.stanford.edu/file/druid:bf950qp8995/Wei.pdf
-- https://github.com/cydivision/climbnet
-- https://cs229.stanford.edu/proj2017/final-reports/5232206.pdf
+- Computer Vision Based Indoor Rock Climbing Analysis: https://kastner.ucsd.edu/ryan/wp-content/uploads/sites/5/2022/06/admin/rock-climbing-coach.pdf
+- Indoor Rock Climbing Wall Route Displayer: https://stacks.stanford.edu/file/druid:bf950qp8995/Wei.pdf
+- CNN for detecting + segmenting indoor climbing holds: https://github.com/cydivision/climbnet
 
 
 ## Teams
@@ -34,7 +33,6 @@
 
 ## Task 1: hold recognition
 - **input:** 2D picture of a climbing wall
-    - images are rectangular, we can do pre/post processing if they're not
 - **output:** polygon bounding box of the holds on the wall
 
 
