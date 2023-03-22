@@ -1,11 +1,8 @@
 import cv2 as cv
 import numpy as np
+from scipy.stats import linregress
 from shapely.geometry import Polygon
 from matplotlib import pyplot as plt
-
-img = cv.imread('298.jpg')
-cv.imshow('image', img)
-cv.waitKey(0)
 
 
 def dist(x1, y1, x2, y2):
@@ -23,7 +20,42 @@ def sobel(img, size=3, scale=1, delta=0):
 
     return grad
 
-def filter_contours(contours, min_points=3, min_bb_area=70, max_bb_size=700):
+def filter_straight_contours(contours, max_rvalue=0.85):
+    """
+    Filter out contours that are too close to lines.
+
+    @param max_rvalue: maximum Pearson correlation coefficient of the linear regression
+
+    """
+    contours = list(contours)
+
+    def error_function(a, b, c):
+        points = [j.tolist()[0] for j in c]
+
+        error = 0
+        for x, y in points:
+            error += abs(y - a * x + b)
+
+        return error / len(c)
+
+    to_remove = []
+    for i, c in enumerate(contours):
+        points = np.asarray([j.tolist()[0] for j in c])
+
+        x = points[:,0]
+        y = points[:,1]
+
+        result = linregress(x, y)
+
+        if result.rvalue > max_rvalue:
+            to_remove.append(i)
+
+    for r in reversed(to_remove):
+        del contours[r]
+
+    return contours
+
+def filter_contours(contours, min_points=3, min_bb_area=125, max_bb_size=700):
     """
     Filter out contours based on the number of their points and their bounding box area.
 
@@ -59,44 +91,26 @@ def filter_contours(contours, min_points=3, min_bb_area=70, max_bb_size=700):
     return contours
 
 
+img = cv.imread('298.jpg')
+cv.imshow('image', img)
+cv.waitKey(0)
+
 blur = cv.GaussianBlur(img, (13, 13), 0)
 cv.imshow('image', blur)
 cv.waitKey(0)
 
-edges = cv.Canny(blur, 35, 35)
-edges_softer = cv.Canny(blur, 10, 10)
-
+edges = cv.Canny(blur, 10, 25)
 cv.imshow('image', edges)
 cv.waitKey(0)
 
-#kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(9,9))
-#dilated = cv.dilate(edges, kernel)
-#
-#cv.imshow('image', dilated)
-# cv.waitKey(0)
-
-#contours, _ = cv.findContours(dilated, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-#contours = list(contours)
-
 contours, _ = cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-contours = filter_contours(contours)
-
-contours_softer, _ = cv.findContours(edges_softer, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-contours_softer = filter_contours(contours_softer)
-
-#contours_img = sobel(blur)
-contours_img = np.zeros(shape=[len(img), len(img[0]), 3], dtype=np.uint8)
-
-#cv.drawContours(contours_img, contours_softer, -1, (0, 0, 255), thickness=2)
-cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=5)
-
+contours_img = sobel(blur)
+cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
 cv.imshow('image', contours_img)
 cv.waitKey(0)
 
-kernel = np.ones((25,25),np.uint8)
-closing = cv.morphologyEx(contours_img, cv.MORPH_CLOSE, kernel)
-
-cv.imshow('image', closing)
+contours = filter_contours(contours)
+contours_img = sobel(blur)
+cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
+cv.imshow('image', contours_img)
 cv.waitKey(0)
-
-# TODO: now grow so the regions combine
