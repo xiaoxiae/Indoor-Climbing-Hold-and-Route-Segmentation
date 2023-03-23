@@ -1,4 +1,4 @@
-data/**/*.jpg
+*.jpg
 **/.DS_Store
 ml/output
 via
