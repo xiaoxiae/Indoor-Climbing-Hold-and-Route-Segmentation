@@ -99,7 +99,7 @@ blur = cv.GaussianBlur(img, (13, 13), 0)
 cv.imshow('image', blur)
 cv.waitKey(0)
 
-edges = cv.Canny(blur, 10, 25)
+edges = cv.Canny(blur, 20, 25)
 cv.imshow('image', edges)
 cv.waitKey(0)
 
