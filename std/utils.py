@@ -1,23 +1,28 @@
 import os
+import sys
 import cv2 as cv
 import numpy as np
 from scipy.stats import linregress
 from shapely.geometry import Polygon
 
+STROKE_COLOR = (0, 255, 0)
+STROKE_THICKNESS = 5
+SAVE = False
+BLUR_SIZE = 13
+CANNY = (20, 25)
 
-def sobel(img, size=3, scale=1, delta=0):
-    """Run a Sobel kernel on the input image."""
-    grad_x = cv.Sobel(img, cv.CV_16S, 1, 0, ksize=size, scale=scale, delta=delta, borderType=cv.BORDER_DEFAULT)
-    grad_y = cv.Sobel(img, cv.CV_16S, 0, 1, ksize=size, scale=scale, delta=delta, borderType=cv.BORDER_DEFAULT)
+def dist(p1, p2):
+    """Return the Euclidean distance between p1 and p2."""
+    return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** (1/2)
 
-    abs_grad_x = cv.convertScaleAbs(grad_x)
-    abs_grad_y = cv.convertScaleAbs(grad_y)
+def contour_to_list(c):
+    """Convert a contour to a list of (x, y) tuples."""
+    l = []
+    for j in c:
+        l.append(j.tolist()[0])
+    return l
 
-    grad = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-
-    return grad
-
-def filter_straight_contours(contours, max_avg_error=2.5):
+def filter_straight_contours(contours, max_avg_error=5):
     """
     Filter out contours that are too close to lines.
 
@@ -26,17 +31,15 @@ def filter_straight_contours(contours, max_avg_error=2.5):
     contours = list(contours)
 
     def error_function(a, b, c):
-        points = [j.tolist()[0] for j in c]
-
         error = 0
-        for x, y in points:
+        for x, y in contour_to_list(c):
             error += (a * x + b - y) ** 2
 
         return error / len(c)
 
     to_remove = []
     for i, c in enumerate(contours):
-        points = np.asarray([j.tolist()[0] for j in c])
+        points = np.asarray(contour_to_list(c))
 
         x = points[:,0]
         y = points[:,1]
@@ -90,8 +93,8 @@ def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=70
 
     return contours
 
-def process_image(img, filename, save=True, scaling=0.5):
-    """Display or save image."""
+def process_image(img, filename, save=SAVE, scaling=0.5):
+    """Display or save an image."""
     d = os.path.dirname(filename)
 
     if not os.path.exists(d):
@@ -100,17 +103,72 @@ def process_image(img, filename, save=True, scaling=0.5):
     if save:
         h, w = img.shape[:2]
 
-        resized_img = cv.resize(img, (w // 2, h // 2), interpolation= cv.INTER_LINEAR)
+        new_w, new_h = int(w * scaling), int(h * scaling)
+
+        resized_img = cv.resize(img, (new_w, new_h), interpolation= cv.INTER_LINEAR)
 
         cv.imwrite(filename, resized_img)
     else:
         cv.imshow('image', img)
         cv.waitKey(0)
 
-def draw_keypoints(img, keypoints, color=(255, 0, 0), thickness=2):
+def draw_keypoints(img, keypoints, color=STROKE_COLOR, thickness=STROKE_THICKNESS):
     """Custom drawing of keypoints (since the OpenCV function doesn't support custom thickness)."""
     for k in keypoints:
         x, y = k.pt
         cv.circle(img, (int(x), int(y)), int(k.size / 2), color=color, thickness=thickness)
 
-    return img
+def draw_contours(img, contours, color=STROKE_COLOR, thickness=STROKE_THICKNESS):
+    """cv.drawContours with sane default."""
+    cv.drawContours(img, contours, -1, color=color, thickness=thickness)
+
+def gaussian_blur(img, size=13):
+    """cv.GaussianBlur with sane default."""
+    return cv.GaussianBlur(img, (size, size), 0)
+
+def canny(img, parameters=CANNY):
+    """cv.Canny with sane default."""
+    return cv.Canny(img, *parameters)
+
+def find_contours(edges):
+    """cv.findContours with sane default."""
+    return cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+def threshold(img, start=0, end=255):
+    """cv.threshold with sane default."""
+    _, t = cv.threshold(img, start, end, cv.THRESH_BINARY)
+    return t
+
+def detect_blobs(img):
+    """OpenCV simple blob detection with sane default."""
+    params = cv.SimpleBlobDetector_Params()
+
+    params.filterByArea = True
+    params.minArea = 500
+    params.maxArea = 100000
+
+    params.minThreshold = 1
+    params.maxThreshold = 200
+    params.thresholdStep = 10
+
+    params.filterByColor = False
+    params.filterByConvexity = False
+    params.filterByInertia = False
+
+    detector = cv.SimpleBlobDetector_create(params)
+    return detector.detect(img)
+
+def get_nearby_contours(point, contours, distance):
+    """Return a list of contours any of whose points are close enough to the point."""
+    def is_close(p, c):
+        for pc in contour_to_list(c):
+            if dist(p, pc) < distance:
+                return True
+        return False
+
+    close = []
+    for c in contours:
+        if is_close(point, c):
+            close.append(c)
+
+    return close
