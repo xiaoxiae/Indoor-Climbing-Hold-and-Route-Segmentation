@@ -1,12 +1,9 @@
+import os
 import cv2 as cv
 import numpy as np
 from scipy.stats import linregress
 from shapely.geometry import Polygon
-from matplotlib import pyplot as plt
 
-
-def dist(x1, y1, x2, y2):
-    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** (1/2)
 
 def sobel(img, size=3, scale=1, delta=0):
     """Run a Sobel kernel on the input image."""
@@ -20,14 +17,11 @@ def sobel(img, size=3, scale=1, delta=0):
 
     return grad
 
-def filter_straight_contours(contours, debug_img, max_error=2.5):
+def filter_straight_contours(contours, max_avg_error=2.5):
     """
     Filter out contours that are too close to lines.
 
-    TODO: remove debug_img
-
-    @param max_rvalue: maximum Pearson correlation coefficient of the linear regression
-
+    @param max_avg_error: maximum average squared point-to-line error (in pixels)
     """
     contours = list(contours)
 
@@ -51,12 +45,9 @@ def filter_straight_contours(contours, debug_img, max_error=2.5):
 
         a, b = result.slope, result.intercept
 
-        p1 = (0, int(b))
-        p2 = (len(debug_img[0]), int(a * len(debug_img[0]) + b))
-
         error = error_function(a, b, c)
 
-        if error < max_error:
+        if error < max_avg_error:
             to_remove.append(i)
 
     for r in reversed(to_remove):
@@ -99,33 +90,22 @@ def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=70
 
     return contours
 
+def process_image(img, filename, save=True):
+    """Display or save image."""
+    d = os.path.dirname(filename)
 
-img = cv.imread('298.jpg')
-cv.imshow('image', img)
-cv.waitKey(0)
+    if not os.path.exists(d):
+        os.mkdir(d)
 
-blur = cv.GaussianBlur(img, (13, 13), 0)
-cv.imshow('image', blur)
-cv.waitKey(0)
+    if save:
+        cv.imwrite(filename, img)
+    else:
+        cv.imshow('image', img)
+        cv.waitKey(0)
 
-edges = cv.Canny(blur, 20, 25)
-cv.imshow('image', edges)
-cv.waitKey(0)
+def draw_keypoints(img, keypoints, color=(255, 0, 0), thickness=2):
+    for k in keypoints:
+        x, y = k.pt
+        cv.circle(img, (int(x), int(y)), int(k.size / 2), color=color, thickness=thickness)
 
-contours, _ = cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-contours_img = sobel(blur)
-cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
-cv.imshow('image', contours_img)
-cv.waitKey(0)
-
-contours = filter_size_contours(contours)
-contours_img = sobel(blur)
-cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
-cv.imshow('image', contours_img)
-cv.waitKey(0)
-
-contours = filter_straight_contours(contours, contours_img, max_error=5)
-contours_img = sobel(blur)
-cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
-cv.imshow('image', contours_img)
-cv.waitKey(0)
+    return img
