@@ -20,9 +20,11 @@ def sobel(img, size=3, scale=1, delta=0):
 
     return grad
 
-def filter_straight_contours(contours, max_rvalue=0.85):
+def filter_straight_contours(contours, debug_img, max_error=2.5):
     """
     Filter out contours that are too close to lines.
+
+    TODO: remove debug_img
 
     @param max_rvalue: maximum Pearson correlation coefficient of the linear regression
 
@@ -34,7 +36,7 @@ def filter_straight_contours(contours, max_rvalue=0.85):
 
         error = 0
         for x, y in points:
-            error += abs(y - a * x + b)
+            error += (a * x + b - y) ** 2
 
         return error / len(c)
 
@@ -47,7 +49,14 @@ def filter_straight_contours(contours, max_rvalue=0.85):
 
         result = linregress(x, y)
 
-        if result.rvalue > max_rvalue:
+        a, b = result.slope, result.intercept
+
+        p1 = (0, int(b))
+        p2 = (len(debug_img[0]), int(a * len(debug_img[0]) + b))
+
+        error = error_function(a, b, c)
+
+        if error < max_error:
             to_remove.append(i)
 
     for r in reversed(to_remove):
@@ -55,7 +64,7 @@ def filter_straight_contours(contours, max_rvalue=0.85):
 
     return contours
 
-def filter_contours(contours, min_points=3, min_bb_area=125, max_bb_size=700):
+def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=700):
     """
     Filter out contours based on the number of their points and their bounding box area.
 
@@ -109,7 +118,13 @@ cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
 cv.imshow('image', contours_img)
 cv.waitKey(0)
 
-contours = filter_contours(contours)
+contours = filter_size_contours(contours)
+contours_img = sobel(blur)
+cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
+cv.imshow('image', contours_img)
+cv.waitKey(0)
+
+contours = filter_straight_contours(contours, contours_img, max_error=5)
 contours_img = sobel(blur)
 cv.drawContours(contours_img, contours, -1, (0, 255, 0), thickness=2)
 cv.imshow('image', contours_img)
