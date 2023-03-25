@@ -90,7 +90,7 @@ def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=70
 
     return contours
 
-def process_image(img, filename, save=True):
+def process_image(img, filename, save=True, scaling=0.5):
     """Display or save image."""
     d = os.path.dirname(filename)
 
@@ -98,12 +98,17 @@ def process_image(img, filename, save=True):
         os.mkdir(d)
 
     if save:
-        cv.imwrite(filename, img)
+        h, w = img.shape[:2]
+
+        resized_img = cv.resize(img, (w // 2, h // 2), interpolation= cv.INTER_LINEAR)
+
+        cv.imwrite(filename, resized_img)
     else:
         cv.imshow('image', img)
         cv.waitKey(0)
 
 def draw_keypoints(img, keypoints, color=(255, 0, 0), thickness=2):
+    """Custom drawing of keypoints (since the OpenCV function doesn't support custom thickness)."""
     for k in keypoints:
         x, y = k.pt
         cv.circle(img, (int(x), int(y)), int(k.size / 2), color=color, thickness=thickness)
