@@ -7,7 +7,7 @@ from shapely.geometry import Polygon
 
 STROKE_COLOR = (0, 255, 0)
 STROKE_THICKNESS = 5
-SAVE = False
+SAVE = True
 BLUR_SIZE = 13
 CANNY = (20, 25)
 
@@ -132,7 +132,20 @@ def canny(img, parameters=CANNY):
 
 def find_contours(edges):
     """cv.findContours with sane default."""
-    return cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv.findContours(edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+    return contours
+
+def simplify_contours(contours, epsilon=0.005):
+    """Simplify contours using the cv.approxPolyDP function."""
+    simplified = []
+
+    for c in contours:
+        peri = cv.arcLength(c, True)
+        approx = cv.approxPolyDP(c, epsilon * peri, True)
+        simplified.append(approx)
+
+    return simplified
 
 def threshold(img, start=0, end=255):
     """cv.threshold with sane default."""
@@ -225,3 +238,71 @@ def merge_blobs(keypoints, min_overlap = 0.15):
         new_keypoints.append(k)
 
     return new_keypoints
+
+def get_closest_contour(point, contours):
+    """Return the closest contour, given a point."""
+    closest = None
+    closest_distance = float('inf')
+    for c in contours:
+        for pc in contour_to_list(c):
+            d = dist(point, pc)
+            if d < closest_distance:
+                closest_distance = d
+                closest = c
+
+    return closest
+
+#def point_to_line_distance(p1, p2, p3):
+#    """Return the distance from point p3 to a line defined by points p1 and p2."""
+#    p1 = np.array(p1)
+#    p2 = np.array(p2)
+#    p3 = np.array(p3)
+#    return np.linalg.norm(np.cross(p2-p1, p1-p3)) / np.linalg.norm(p2-p1)
+
+def point_to_segment_distance(a, b, p):
+    """Return the distance from point p to a segment defined by points a and sb."""
+    a = np.array(a)
+    b = np.array(b)
+    p = np.array(p)
+
+    # normalized tangent vector
+    d = np.divide(b - a, np.linalg.norm(b - a))
+
+    # signed parallel distance components
+    s = np.dot(a - p, d)
+    t = np.dot(p - b, d)
+
+    # clamped parallel distance
+    h = np.maximum.reduce([s, t, 0])
+
+    # perpendicular distance component
+    c = np.cross(p - a, d)
+
+    return np.hypot(h, np.linalg.norm(c))
+
+
+def point_to_contour_distance(point, contour):
+    """Return the distance from point to contour."""
+    cl = contour_to_list(contour)
+
+    min_d = float('inf')
+    for i in range(len(cl) - 1):
+        d = point_to_segment_distance(cl[i], cl[i + 1], point)
+
+        if d < min_d:
+            min_d = d
+
+    return min_d
+
+def squared_contour_error(contours_from, contour_to):
+    """Return the average squared error of distances of points from a list of contours to another contour."""
+    point_count = 0
+    contour_error = 0
+
+    for c in contours_from:
+        point_count += len(c)
+
+        for pc in contour_to_list(c):
+            contour_error += point_to_contour_distance(pc, contour_to)
+
+    return contour_error / point_count
