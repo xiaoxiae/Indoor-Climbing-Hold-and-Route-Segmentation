@@ -7,6 +7,8 @@ from shapely.geometry import Polygon
 
 STROKE_COLOR = (0, 255, 0)
 STROKE_THICKNESS = 5
+BOX_STROKE_COLOR = (0, 128, 0)
+BOX_STROKE_THICKNESS = 5
 SAVE = True
 BLUR_SIZE = 13
 CANNY = (20, 25)
@@ -121,6 +123,24 @@ def draw_keypoints(img, keypoints, color=STROKE_COLOR, thickness=STROKE_THICKNES
 def draw_contours(img, contours, color=STROKE_COLOR, thickness=STROKE_THICKNESS):
     """cv.drawContours with sane default."""
     cv.drawContours(img, contours, -1, color=color, thickness=thickness)
+
+def contour_to_box(contour):
+    min_x, min_y = float('inf'), float('inf')
+    max_x, max_y = 0, 0
+
+    for x, y in contour_to_list(contour):
+        min_x = min(x, min_x)
+        min_y = min(y, min_y)
+        max_x = max(x, max_x)
+        max_y = max(y, max_y)
+
+    return (min_x, min_y, max_x, max_y)
+
+def draw_contour_boxes(img, contours, color=BOX_STROKE_COLOR, thickness=BOX_STROKE_THICKNESS):
+    """cv.drawContours with sane default."""
+    for c in contours:
+        x1, y1, x2, y2 = contour_to_box(c)
+        cv.rectangle(img, (x1, y1), (x2, y2), color=color, thickness=thickness)
 
 def gaussian_blur(img, size=13):
     """cv.GaussianBlur with sane default."""
