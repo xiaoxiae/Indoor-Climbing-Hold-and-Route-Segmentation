@@ -172,3 +172,56 @@ def get_nearby_contours(point, contours, distance):
             close.append(c)
 
     return close
+
+def merge_blobs(keypoints, min_overlap = 0.15):
+    """Return a list of keypoints after merging those that overlap."""
+
+    merge_pairs = []
+    merge_set = set()
+
+    for i, k1 in enumerate(keypoints):
+        for j, k2 in enumerate(keypoints):
+            if i >= j:
+                continue
+
+            p1, p2, r1, r2 = k1.pt, k2.pt, k1.size / 2, k2.size / 2
+
+            d = dist(p1, p2)
+
+            if d > r1 + r2:
+                continue
+
+            overlap = d / (r1 + r2)
+
+            if overlap > min_overlap:
+                merge_pairs.append((i, j))
+                merge_set.add(i)
+                merge_set.add(j)
+
+    if len(merge_pairs) == 0:
+        return keypoints
+
+    new_keypoints = []
+
+    for i, j in merge_pairs:
+        k1 = keypoints[i]
+        k2 = keypoints[j]
+
+        p1, p2, r1, r2 = k1.pt, k2.pt, k1.size / 2, k2.size / 2
+        d = dist(p1, p2)
+
+        r_ratio = r1 / (r1 + r2)
+
+        r_new = (r1 + r2 + d) / 2
+        x_new = p1[0] * r_ratio + p2[0] * (1 - r_ratio)
+        y_new = p1[1] * r_ratio + p2[1] * (1 - r_ratio)
+
+        new_keypoints.append(cv.KeyPoint(x_new, y_new, r_new * 2))
+
+    for i, k in enumerate(keypoints):
+        if i in merge_set:
+            continue
+
+        new_keypoints.append(k)
+
+    return new_keypoints
