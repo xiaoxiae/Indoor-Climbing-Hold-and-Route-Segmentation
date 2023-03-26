@@ -7,8 +7,6 @@ from shapely.geometry import Polygon
 
 STROKE_COLOR = (0, 255, 0)
 STROKE_THICKNESS = 5
-BOX_STROKE_COLOR = (0, 128, 0)
-BOX_STROKE_THICKNESS = 5
 SAVE = True
 BLUR_SIZE = 13
 CANNY = (20, 25)
@@ -136,7 +134,7 @@ def contour_to_box(contour):
 
     return (min_x, min_y, max_x, max_y)
 
-def draw_contour_boxes(img, contours, color=BOX_STROKE_COLOR, thickness=BOX_STROKE_THICKNESS):
+def draw_contour_boxes(img, contours, color=STROKE_COLOR, thickness=STROKE_THICKNESS):
     """cv.drawContours with sane default."""
     for c in contours:
         x1, y1, x2, y2 = contour_to_box(c)

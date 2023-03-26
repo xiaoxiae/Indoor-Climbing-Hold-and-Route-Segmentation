@@ -62,6 +62,6 @@ for k in keypoints:
     hold_approximations[k] = best_contour
 
 img_copy = img.copy()
-draw_contour_boxes(img_copy, list(hold_approximations.values()))
-draw_contours(img_copy, list(hold_approximations.values()))
+draw_contour_boxes(img_copy, list(hold_approximations.values()), color=(0, 255, 0))
+draw_contours(img_copy, list(hold_approximations.values()), (0, 128, 0))
 process_image(img_copy, "combined/2-holds.jpg")
