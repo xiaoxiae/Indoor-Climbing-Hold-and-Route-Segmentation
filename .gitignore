@@ -3,3 +3,5 @@
 **/.DS_Store
 ml/output
 via
+**_checkpoints/
+**__pycache__/
