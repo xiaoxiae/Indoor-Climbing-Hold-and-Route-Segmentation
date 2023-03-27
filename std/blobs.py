@@ -1,7 +1,7 @@
 from utils import *
 
 
-img = cv.imread('298.jpg')
+img = cv.imread("../data/sm/298.jpg")
 process_image(img, "blobs/1-original.jpg")
 
 keypoints = detect_blobs(img)

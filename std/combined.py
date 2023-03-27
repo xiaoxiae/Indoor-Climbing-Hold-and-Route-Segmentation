@@ -1,7 +1,7 @@
 from utils import *
 
 
-img = cv.imread('298.jpg')
+img = cv.imread("../data/sm/298.jpg")
 
 img_copy = img.copy()
 process_image(img_copy, "combined/1-original.jpg")

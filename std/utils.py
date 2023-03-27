@@ -2,13 +2,17 @@ import os
 import sys
 import cv2 as cv
 import numpy as np
-import detectron2
+
 from scipy.stats import linregress
 from shapely.geometry import Polygon
 
+from detectron2.structures import Instances, Boxes
+import torch
+
+
 STROKE_COLOR = (0, 255, 0)
 STROKE_THICKNESS = 5
-SAVE = True
+SAVE = False
 BLUR_SIZE = 13
 CANNY = (20, 25)
 THRESHOLD_STEP = 5
@@ -100,10 +104,10 @@ def process_image(img, filename, save=SAVE, scaling=0.5):
     """Display or save an image."""
     d = os.path.dirname(filename)
 
-    if not os.path.exists(d):
-        os.mkdir(d)
-
     if save:
+        if not os.path.exists(d):
+            os.mkdir(d)
+
         h, w = img.shape[:2]
 
         new_w, new_h = int(w * scaling), int(h * scaling)
@@ -136,6 +140,14 @@ def contour_to_box(contour):
         max_y = max(y, max_y)
 
     return (min_x, min_y, max_x, max_y)
+
+def contour_to_mask(img, contour):
+    h, w = img.shape[:2]
+    blank = np.zeros(shape=[h, w], dtype=np.uint8)
+
+    cv.fillPoly(blank, contour, color=(255, 255, 255))
+
+    return blank
 
 def draw_contour_boxes(img, contours, color=STROKE_COLOR, thickness=STROKE_THICKNESS):
     """cv.drawContours with sane default."""
@@ -273,12 +285,12 @@ def get_closest_contour(point, contours):
 
     return closest
 
-#def point_to_line_distance(p1, p2, p3):
-#    """Return the distance from point p3 to a line defined by points p1 and p2."""
-#    p1 = np.array(p1)
-#    p2 = np.array(p2)
-#    p3 = np.array(p3)
-#    return np.linalg.norm(np.cross(p2-p1, p1-p3)) / np.linalg.norm(p2-p1)
+def point_to_line_distance(p1, p2, p3):
+    """Return the distance from point p3 to a line defined by points p1 and p2."""
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+    p3 = np.array(p3)
+    return np.linalg.norm(np.cross(p2-p1, p1-p3)) / np.linalg.norm(p2-p1)
 
 def point_to_segment_distance(a, b, p):
     """Return the distance from point p to a segment defined by points a and sb."""
@@ -376,7 +388,22 @@ def detect_holds(img, keypoints, contours):
 
     return hold_approximations
 
-def to_detectron_format(contours):
+def to_detectron_format(img, contours):
     """Convert the contours of holds to a format that is parsable by detectron.
     https://detectron2.readthedocs.io/en/latest/tutorials/models.html#model-output-format"""
-    pass
+    h, w = img.shape[:2]
+
+    instances = Instances((h, w))
+
+    boxes = []
+    for c in contours:
+        boxes.append(contour_to_box(c))
+
+    masks = []
+    for c in contours:
+        masks.append(contour_to_mask(img, c))
+
+    instances.set("pred_boxes", Boxes(torch.tensor(boxes)))
+    instances.set("pred_masks", torch.tensor(masks))
+
+    return instances

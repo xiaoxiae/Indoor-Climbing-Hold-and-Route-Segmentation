@@ -1,7 +1,7 @@
 from utils import *
 
 
-img = cv.imread('298.jpg')
+img = cv.imread("../data/sm/298.jpg")
 process_image(img, "edges/1-original.jpg")
 
 blur = gaussian_blur(img)
@@ -10,7 +10,7 @@ process_image(blur, "edges/2-blur.jpg")
 edges = canny(blur)
 process_image(edges, "edges/3-edges.jpg")
 
-contours, _ = find_contours(edges)
+contours = find_contours(edges)
 contours_img = img.copy()
 draw_contours(contours_img, contours)
 process_image(contours_img, "edges/4-contours.jpg")
