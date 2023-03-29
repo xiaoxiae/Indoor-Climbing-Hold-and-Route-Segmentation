@@ -13,14 +13,14 @@ Alternatively, you can run the ML hold detection straight on Kaggle without down
 
 ```
 .
-├── data
-│   ├── bh                # Bolderhaus camera
-│   ├── bh-phone          # Bolderhaus phone
-│   ├── sm                # Smíchoff camera
+├── data/
+│   ├── bh/               # Bolderhaus camera VIA annotations
+│   ├── bh-phone/         # Bolderhaus phone VIA annotations
+│   ├── sm/               # Smíchoff camera VIA annotations
 │   ├── *.py              # dataset utility scripts
 │   └── statistics.ipynb  # dataset statistics
-├── demo.ipynb            # code demo
-├── ml                    # machine learning approach
-├── paper                 # paper source code
-└── std                   # standard approach
+├── ml/                   # machine learning approach
+├── std/                  # standard approach
+├── paper/                # paper source code
+└── demo.ipynb            # code demo
 ```
