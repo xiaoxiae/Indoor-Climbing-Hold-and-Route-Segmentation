@@ -75,7 +75,7 @@ def move_train_test(
 
 
 def create_dataset_dicts(
-    img_dir: str, annotation_filename: str = "annotation.json"
+    img_dir: str, annotation_filename: str = "annotation.json", skip_no_routes=False
 ) -> List[dict]:
     hold_class_mapping = {"hold": 0, "volume": 1}
     annotation_json = os.path.join(img_dir, annotation_filename)
@@ -94,6 +94,15 @@ def create_dataset_dicts(
         ):
             # Skip images which have regions that are not handlabeled
             continue
+
+        if skip_no_routes:
+            if all(
+                [
+                    not "route_id" in region["region_attributes"]
+                    for region in image["regions"]
+                ]
+            ):
+                continue
         record = {}
         image_filename = os.path.join(img_dir, image["filename"])
         height, width = cv2.imread(image_filename).shape[:2]
@@ -121,6 +130,7 @@ def create_dataset_dicts(
                 "category_id": hold_class_mapping[
                     region["region_attributes"]["hold_type"]
                 ],
+                "route_id": region["region_attributes"].get("route_id", None),
             }
             annotation_objects.append(annotation_obj)
         record["annotations"] = annotation_objects
