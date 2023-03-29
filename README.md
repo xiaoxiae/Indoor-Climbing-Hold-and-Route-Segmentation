@@ -1,5 +1,5 @@
 # Indoor Climbing Hold and Route Segmentation
-This repository contains the source code for the technical report [Indoor Climbing Hold and Route Segmentation](TODO), made as a final project for the [Computer Vision: 3D Reconstruction](https://hci.iwr.uni-heidelberg.de/content/computer-vision-3d-reconstruction-ws-2223) course (University of Heidelberg).
+This repository contains the source code for the [Indoor Climbing Hold and Route Segmentation](https://github.com/xiaoxiae/Indoor-Climbing-Hold-and-Route-Segmentation/tree/main/paper/main.pdf) project, created as a final assignment for the [Computer Vision: 3D Reconstruction](https://hci.iwr.uni-heidelberg.de/content/computer-vision-3d-reconstruction-ws-2223) course (University of Heidelberg).
 
 ## Obtaining data
 The data used, including the best-performing model weights, can be obtained from Kaggle: https://www.kaggle.com/datasets/tomasslama/indoor-climbing-gym-hold-segmentation
