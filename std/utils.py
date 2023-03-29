@@ -12,10 +12,16 @@ import torch
 
 STROKE_COLOR = (0, 255, 0)
 STROKE_THICKNESS = 5
-SAVE = False
-BLUR_SIZE = 13
-CANNY = (20, 25)
-THRESHOLD_STEP = 5
+
+EVALUATION_DATA = [
+    "../data/bh/0000.jpg",
+    "../data/bh/0457.jpg",
+    "../data/bh/0518.jpg",
+    "../data/bh-phone/126.jpg",
+    "../data/bh-phone/182.jpg",
+    "../data/sm/082.jpg",
+    "../data/sm/108.jpg",
+]
 
 
 def dist(p1, p2):
@@ -65,13 +71,12 @@ def filter_straight_contours(contours, max_avg_error=5):
 
     return contours
 
-def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=700):
+def filter_size_contours(contours, min_points=3, min_bb_area=125):
     """
     Filter out contours based on the number of their points and their bounding box area.
 
     @param min_points: the minimum number of points a contour can have
     @param min_bb_area: the minimum area of a bounding box of a contour
-    @param max_bb_size: the maximum width/height of a bounding box of a contour
     """
     contours = list(contours)
 
@@ -92,15 +97,12 @@ def filter_size_contours(contours, min_points=3, min_bb_area=125, max_bb_size=70
         if w * h < min_bb_area:
             to_remove.append(i)
 
-        if w > max_bb_size or h > max_bb_size:
-            to_remove.append(i)
-
     for r in reversed(to_remove):
         del contours[r]
 
     return contours
 
-def process_image(img, filename, save=SAVE, scaling=0.5):
+def process_image(img, filename, save=True, scaling=0.5):
     """Display or save an image."""
     d = os.path.dirname(filename)
 
@@ -159,7 +161,7 @@ def gaussian_blur(img, size=13):
     """cv.GaussianBlur with sane default."""
     return cv.GaussianBlur(img, (size, size), 0)
 
-def canny(img, parameters=CANNY):
+def canny(img, parameters=(20, 25)):
     """cv.Canny with sane default."""
     return cv.Canny(img, *parameters)
 
@@ -191,7 +193,7 @@ def detect_blobs(img):
 
     params.filterByArea = True
     params.minArea = 500
-    params.maxArea = 100000
+    params.maxArea = 1000000
 
     params.minThreshold = 1
     params.maxThreshold = 200
@@ -340,13 +342,13 @@ def squared_contour_error(contours_from, contour_to):
 
     return contour_error / point_count
 
-def detect_holds(img, keypoints, contours):
+def detect_holds(img, keypoints, contours, threshold_step=5):
     """Detect holds by combining blob and edge detection."""
     # pre-compute thresholds and contours/edges since they're used repeatedly
     blur = gaussian_blur(img)
 
     thresholds = {}
-    for i in range(0, 255, THRESHOLD_STEP):
+    for i in range(0, 255, threshold_step):
         t = threshold(blur, i, 255)
         thresholds[i] = []
 
@@ -368,7 +370,7 @@ def detect_holds(img, keypoints, contours):
         best_contour_error = float('inf')
 
         # find optimal threshold
-        for i in range(0, 255, THRESHOLD_STEP):
+        for i in range(0, 255, threshold_step):
             for t_edges, t_contours in thresholds[i]:
                 closest_t_contour = get_closest_contour(k.pt, t_contours)
 

@@ -1,9 +1,11 @@
 from utils import *
 
-images = ["../data/sm/298.jpg"]
+from detectron2.evaluation.coco_evaluation import *
 
-annotations = []
-for file in images:
+instances = []
+for file in EVALUATION_DATA[:1]:
+    stub = file[8:].replace("/", "-")
+
     img = cv.imread(file)
 
     # blobs
@@ -21,7 +23,10 @@ for file in images:
     # holds
     hold_approximations = detect_holds(img, keypoints, contours)
 
-    annotations.append(to_detectron_format(img, list(hold_approximations.values())))
+    instances.append(to_detectron_format(img, list(hold_approximations.values())))
 
-# TODO: what to do now?
+for instance in instances:
+    print(instances_to_coco_json(instance))
+
 print(annotations)
+#ev = COCOEvaluator()
