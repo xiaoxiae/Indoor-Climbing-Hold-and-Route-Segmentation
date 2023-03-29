@@ -10,7 +10,9 @@ import torch
 from detectron2.structures import BoxMode
 from imantics import Mask
 from torch.utils.data import random_split
+from detectron2.structures import polygons_to_bitmask
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 def cp_files(file_list: List[str], destination: str) -> None:
@@ -206,3 +208,74 @@ def annotate_polygons(
     file_path = os.path.join(img_dir, new_filename)
     with open(file_path, "w") as f:
         json.dump(data, f)
+
+
+def plot_routes(routes_dict, image_obj):
+    figures_axes = []
+    for route_id, holds in routes_dict.items():
+        img_orig = cv2.imread(image_obj["file_name"])
+        img = torch.tensor(img_orig).permute(2, 0, 1)
+        final_bitmask = torch.zeros_like(img)
+        for hold_idx in holds:
+            poly = image_obj["annotations"][hold_idx]
+            bitmask = torch.tensor(
+                polygons_to_bitmask(
+                    poly["segmentation"],
+                    height=image_obj["height"],
+                    width=image_obj["width"],
+                )
+            ).int()
+            final_bitmask = final_bitmask + bitmask
+        final_bitmask = final_bitmask.bool().float()
+        masked_output = img * final_bitmask
+        img_routes = masked_output.int().permute(1, 2, 0).cpu().detach().numpy()
+        fig, ax = plt.subplots(ncols=2)
+        img_routes = cv2.resize(
+            img_routes, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR_EXACT
+        )
+        img_orig = cv2.resize(
+            img_orig, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR_EXACT
+        )
+        ax[0].imshow(img_routes[:, :, ::-1])
+        ax[0].axis("off")
+        ax[1].imshow(img_orig[:, :, ::-1])
+        ax[1].axis("off")
+        figures_axes.append((fig, ax))
+    return figures_axes
+
+
+def plot_routes_instances(routes_dict, instances, img):
+    figures_axes = []
+    for route_id, holds in routes_dict.items():
+        img_torch = torch.tensor(img).permute(2, 0, 1)
+        final_bitmask = torch.zeros_like(img_torch)
+        for hold_idx in holds:
+            bitmask = instances[hold_idx].pred_masks.cpu().squeeze().int().float()
+            final_bitmask = final_bitmask + bitmask
+        final_bitmask = final_bitmask.bool().float()
+        masked_output = img_torch * final_bitmask
+        img_routes = masked_output.int().permute(1, 2, 0).cpu().detach().numpy()
+        fig, ax = plt.subplots(ncols=2)
+        img_routes = cv2.resize(
+            img_routes, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR_EXACT
+        )
+        img_orig = cv2.resize(
+            img, (0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_LINEAR_EXACT
+        )
+        ax[0].imshow(img_routes[:, :, ::-1])
+        ax[0].axis("off")
+        ax[1].imshow(img_orig[:, :, ::-1])
+        ax[1].axis("off")
+        figures_axes.append((fig, ax))
+    return figures_axes
+
+
+def instance_to_hold(instance, img, transforms, device):
+    img_torch = torch.tensor(img).permute(2, 0, 1)
+    pred_mask = instance.pred_masks.cpu().squeeze().int().float()
+    box_coords = instance.pred_boxes.tensor.flatten().int()
+    masked_img = img_torch * pred_mask
+    hold = masked_img[:, box_coords[1] : box_coords[3], box_coords[0] : box_coords[2]]
+    hold = transforms(hold)
+    hold = hold.to(device)
+    return hold
