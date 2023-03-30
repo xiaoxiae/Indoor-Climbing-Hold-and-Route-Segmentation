@@ -1,6 +1,8 @@
 # Indoor Climbing Hold and Route Segmentation
 This repository contains the source code for the [Indoor Climbing Hold and Route Segmentation](https://github.com/xiaoxiae/Indoor-Climbing-Hold-and-Route-Segmentation/tree/main/paper/main.pdf) project, created as a final assignment for the [Computer Vision: 3D Reconstruction](https://hci.iwr.uni-heidelberg.de/content/computer-vision-3d-reconstruction-ws-2223) course (University of Heidelberg).
 
+![](paper/img/converted-sm-image.jpg)
+
 ## Abstract
 _Image segmentation has uses in a wide variety of fields, including medicine, geography, and sport. For indoor rock climbing specifically, the main task is the segmentation of the holds which the climbers use to scale the wall. Furthermore, since holds of the same color form routes, the secondary task is to find these routes. A number of approaches have been devised to solve these two tasks, with the two major categories being learning and non-learning approaches. We have tested and implemented both learning and non-learning (standard) approaches for these tasks, finding the learning approaches far superior in terms of accuracy, but less practical due to the need for good training data, which has to be obtained manually._
 
