@@ -5,3 +5,4 @@ ml/output
 via
 **_checkpoints/
 **__pycache__/
+ml/weights/
