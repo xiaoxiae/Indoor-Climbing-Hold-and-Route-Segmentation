@@ -1,8 +1,6 @@
 import os
-import sys
 import cv2 as cv
 import numpy as np
-import json
 from typing import List
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -12,10 +10,7 @@ from shapely.geometry import Polygon
 
 from detectron2.structures import Instances, Boxes
 import torch
-import detectron2.data.transforms as T
-from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.structures import BoxMode
+from scipy.stats import kurtosis, skew
 
 
 STROKE_COLOR = (0, 255, 0)
@@ -418,48 +413,6 @@ def to_detectron_format(img, contours):
 
     return instances
 
-def create_dataset_dicts(
-    img_dir: str, annotation_filename: str = "annotation.json"
-) -> List[dict]:
-    annotation_json = os.path.join(img_dir, annotation_filename)
-    with open(annotation_json, "r") as f:
-        img_annotations = json.load(f)["_via_img_metadata"]
-    dataset = []
-    for id, image in enumerate(img_annotations.values()):
-        if not image["regions"]:
-            # Skip images that have no region annotation, i.e. not annotated images
-            continue
-        record = {}
-        image_filename = os.path.join(img_dir, image["filename"])
-        height, width = cv.imread(image_filename).shape[:2]
-
-        # Create dataset dict according to detectron2 dataset specification
-        # https://detectron2.readthedocs.io/en/latest/tutorials/datasets.html#standard-dataset-dicts
-
-        record["file_name"] = image_filename
-        record["height"] = height
-        record["width"] = width
-        record["image_id"] = id
-
-        annotation_objects = []
-        for annotation in image["regions"]:
-            anno = annotation["shape_attributes"]
-            px = anno["all_points_x"]
-            py = anno["all_points_y"]
-            # Merge point lists and flatten to [x_1, y_1, ..., x_n y_n] format
-            polygons = [(x, y) for (x, y) in zip(px, py)]
-            polygons = np.ravel(polygons).tolist()
-            annotation_obj = {
-                "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                "segmentation": [polygons],
-                "category_id": 0,  # We only have one category
-            }
-            annotation_objects.append(annotation_obj)
-        record["annotations"] = annotation_objects
-        dataset.append(record)
-    return dataset
-
 def find_hold_contours(image, d_dict):
     """find hold contours"""
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
@@ -516,6 +469,7 @@ def plot_routes(routes: List, d_dict):
         ax[0].imshow(img_routes[:, :, ::-1])
         ax[1].imshow(image_bgr[:, :, ::-1])
 
+# Masked versions of color moments https://en.wikipedia.org/wiki/Color_moments
 def masked_skewness(image, mask):
     np_image = np.transpose(image, (2, 0, 1)).astype("float64")
     mask_3 = np.array([mask, mask, mask])
@@ -524,7 +478,7 @@ def masked_skewness(image, mask):
     image_raveled = np.ma.reshape(np_image, (3, -1))
     return skew(image_raveled, axis=1)
 
-
+# Masked versions of color moments https://en.wikipedia.org/wiki/Color_moments
 def masked_kurtosis(image, mask):
     np_image = np.transpose(image, (2, 0, 1)).astype("float64")
     mask_3 = np.array([mask, mask, mask])
