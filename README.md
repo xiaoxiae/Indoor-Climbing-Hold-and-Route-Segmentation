@@ -7,7 +7,10 @@ The data used, including the best-performing model weights, can be obtained from
 ## Running the code
 A short demo of the implemented functionality can be found in `demo.ipynb`.
 
-Alternatively, you can run the ML hold detection straight on Kaggle without downloading anything: https://www.kaggle.com/code/tomasslama/indoor-climbing-gym-hold-segmentation-example
+Alternatively, you can run the ML hold and route detection straight on Kaggle without downloading anything:
+
+- Hold Segmentation: https://www.kaggle.com/code/tomasslama/hold-segmentation/
+- Route Segmentation: https://www.kaggle.com/code/tomasslama/route-segmentation/
 
 ## Folder structure
 
