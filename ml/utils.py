@@ -25,6 +25,13 @@ def move_train_test(
     annotation_filename: str = "annotation.json",
     train_split: float = 0.8,
 ) -> None:
+    """
+    Copies data into train/test directories and creates train/test annotation files 
+
+    @param img_dir: Image dir
+    @param annotation_filename: filename of annotation json
+    @param train_split: Percentage of images for train set
+    """
     annotation_json = os.path.join(img_dir, annotation_filename)
     dataset_filenames = []
     with open(annotation_json, "r") as f:
@@ -79,6 +86,14 @@ def move_train_test(
 def create_dataset_dicts(
     img_dir: str, annotation_filename: str = "annotation.json", skip_no_routes=False
 ) -> List[dict]:
+    """
+    Create dataset according to detectron specification: https://detectron2.readthedocs.io/en/latest/tutorials/datasets.html#standard-dataset-dicts
+
+    @param img_dir: Image dir
+    @param annotation_filename: filename of annotation json
+    @param skip_no_routes: If True images without route annotations are skipped
+    
+    """
     hold_class_mapping = {"hold": 0, "volume": 1}
     annotation_json = os.path.join(img_dir, annotation_filename)
     with open(annotation_json, "r") as f:
@@ -161,6 +176,13 @@ def create_train_augmentations(cfg):
 def annotate_polygons(
     predictor, img_dir: str, annotation_filename: str = "annotation.json"
 ):
+    """
+    Uses predictor to create prelabeled polygons and saves them in annotation_filename
+
+    @param predictor: detectron Predictor instance
+    @param img_dir: Image dir
+    @param annotation_filename: filename of annotation json
+    """
     annotation_json = os.path.join(img_dir, annotation_filename)
     with open(annotation_json, "r") as f:
         data = json.load(f)
@@ -211,6 +233,12 @@ def annotate_polygons(
 
 
 def plot_routes(routes_dict, image_obj):
+    """
+    Plots routes based on route_dict and image_obj
+
+    @param routes_dict: Dictionary with list of instance indices per key e.g. {0: [0,1,2]}
+    @param image_obj: Image object created by create_dataset_dicts
+    """
     figures_axes = []
     for route_id, holds in routes_dict.items():
         img_orig = cv2.imread(image_obj["file_name"])
@@ -245,6 +273,13 @@ def plot_routes(routes_dict, image_obj):
 
 
 def plot_routes_instances(routes_dict, instances, img):
+    """
+    Plots routes based on route_dict and instances object
+
+    @param routes_dict: Dictionary with list of instance indices per key e.g. {0: [0,1,2]}
+    @param instances: detectron instances object
+    @param img: Image in BGR order
+    """
     figures_axes = []
     for route_id, holds in routes_dict.items():
         img_torch = torch.tensor(img).permute(2, 0, 1)
@@ -271,6 +306,14 @@ def plot_routes_instances(routes_dict, instances, img):
 
 
 def instance_to_hold(instance, img, transforms, device):
+    """
+    Crops masked hold from image, applies transforms, and transfers it to device
+
+    @param instance: Single detectron Instance
+    @param img: Image in BGR order
+    @param transforms: List of transformations to apply
+    @param device: Device of torch tensor
+    """
     img_torch = torch.tensor(img).permute(2, 0, 1)
     pred_mask = instance.pred_masks.cpu().squeeze().int().float()
     box_coords = instance.pred_boxes.tensor.flatten().int()
