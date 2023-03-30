@@ -2,12 +2,20 @@ import os
 import sys
 import cv2 as cv
 import numpy as np
+import json
+from typing import List
+import matplotlib.pyplot as plt
+from collections import defaultdict
 
 from scipy.stats import linregress
 from shapely.geometry import Polygon
 
 from detectron2.structures import Instances, Boxes
 import torch
+import detectron2.data.transforms as T
+from detectron2.config import get_cfg
+from detectron2.utils.visualizer import Visualizer
+from detectron2.structures import BoxMode
 
 
 STROKE_COLOR = (0, 255, 0)
@@ -409,3 +417,165 @@ def to_detectron_format(img, contours):
     instances.set("pred_masks", torch.tensor(masks))
 
     return instances
+
+def create_dataset_dicts(
+    img_dir: str, annotation_filename: str = "annotation.json"
+) -> List[dict]:
+    annotation_json = os.path.join(img_dir, annotation_filename)
+    with open(annotation_json, "r") as f:
+        img_annotations = json.load(f)["_via_img_metadata"]
+    dataset = []
+    for id, image in enumerate(img_annotations.values()):
+        if not image["regions"]:
+            # Skip images that have no region annotation, i.e. not annotated images
+            continue
+        record = {}
+        image_filename = os.path.join(img_dir, image["filename"])
+        height, width = cv.imread(image_filename).shape[:2]
+
+        # Create dataset dict according to detectron2 dataset specification
+        # https://detectron2.readthedocs.io/en/latest/tutorials/datasets.html#standard-dataset-dicts
+
+        record["file_name"] = image_filename
+        record["height"] = height
+        record["width"] = width
+        record["image_id"] = id
+
+        annotation_objects = []
+        for annotation in image["regions"]:
+            anno = annotation["shape_attributes"]
+            px = anno["all_points_x"]
+            py = anno["all_points_y"]
+            # Merge point lists and flatten to [x_1, y_1, ..., x_n y_n] format
+            polygons = [(x, y) for (x, y) in zip(px, py)]
+            polygons = np.ravel(polygons).tolist()
+            annotation_obj = {
+                "bbox": [np.min(px), np.min(py), np.max(px), np.max(py)],
+                "bbox_mode": BoxMode.XYXY_ABS,
+                "segmentation": [polygons],
+                "category_id": 0,  # We only have one category
+            }
+            annotation_objects.append(annotation_obj)
+        record["annotations"] = annotation_objects
+        dataset.append(record)
+    return dataset
+
+def find_hold_contours(image, d_dict):
+    """find hold contours"""
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    points = np.array([[0,0],[d_dict["width"]-1,0],[d_dict["width"]-1,d_dict["height"]-1],[0,d_dict["height"]-1]])
+
+    cv.fillPoly(gray,np.int32([points]),(0,0,0))
+    for poly in d_dict["annotations"]:
+        p=np.array(poly["segmentation"])
+        points = np.reshape(p,[int(p.shape[1]/2),2])
+        cv.fillPoly(gray,np.int32([points]),(255,255,255))
+    mask = gray
+
+    contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    return contours
+
+def draw_segmented_objects(image, contours, label_cnt_idx, holds_count):
+    mask = np.zeros_like(image[:, :, 0])
+    cv.drawContours(mask, [contours[i] for i in label_cnt_idx], -1, (255), -1)
+    masked_image = cv.bitwise_and(image, image, mask=mask)
+    masked_image = cv.putText(masked_image, f'{holds_count} holds', (200, 1200), cv.FONT_HERSHEY_SIMPLEX,
+                        fontScale = 7, color = (255, 255, 255), thickness = 12, lineType = cv.LINE_AA)
+    return masked_image
+
+def plot_result(image, contours, df_mean_color):
+    img = image.copy()
+    for label, df_grouped in df_mean_color.groupby('label'):
+        holds_amount = len(df_grouped)
+        masked_image = draw_segmented_objects(image, contours, df_grouped.index, holds_amount)
+        img = cv.hconcat([img, masked_image])
+
+    plt.imshow(cv.cvtColor(img, cv.COLOR_BGR2RGB) )
+    plt.axis('off')
+
+def plot_routes(routes: List, d_dict):
+    image_bgr = cv.imread(d_dict["file_name"])
+    for k, holds in routes.items():
+        height = d_dict["height"]
+        width = d_dict["width"]
+        final_bitmask = np.zeros((height, width))
+        for hold_id in holds:
+            hold_poly = d_dict["annotations"][hold_id]
+            points = np.array(hold_poly["segmentation"])
+            points = points.reshape((-1, 2)).astype(np.int32)
+            points = points[np.newaxis, :]
+            bitmask = cv.fillPoly(np.zeros(image_bgr.shape[:2]), points, 255).astype(
+                np.uint8
+            )
+            final_bitmask = final_bitmask + bitmask
+        final_bitmask = final_bitmask.astype(np.bool8).astype(np.float32)
+        img = image_bgr.transpose((2, 0, 1))
+        masked_output = img * final_bitmask
+        img_routes = masked_output.astype(np.int32).transpose((1, 2, 0))
+        fig, ax = plt.subplots(ncols=2)
+        ax[0].imshow(img_routes[:, :, ::-1])
+        ax[1].imshow(image_bgr[:, :, ::-1])
+
+def masked_skewness(image, mask):
+    np_image = np.transpose(image, (2, 0, 1)).astype("float64")
+    mask_3 = np.array([mask, mask, mask])
+    np_mask = np.ma.make_mask(mask_3)
+    np_image = np.ma.array(np_image, mask=np_mask)
+    image_raveled = np.ma.reshape(np_image, (3, -1))
+    return skew(image_raveled, axis=1)
+
+
+def masked_kurtosis(image, mask):
+    np_image = np.transpose(image, (2, 0, 1)).astype("float64")
+    mask_3 = np.array([mask, mask, mask])
+    np_mask = np.ma.make_mask(mask_3)
+    np_image = np.ma.array(np_image, mask=np_mask)
+    image_raveled = np.ma.reshape(np_image, (3, -1))
+    return kurtosis(image_raveled, axis=1)
+
+def get_color_moments(image, d_dict):
+    color_moments = defaultdict(list)
+    for idx, poly in enumerate(d_dict["annotations"]):
+        if poly["category_id"] == 1:
+        # Volumes are considered part of the wall, not part of a route -> skip
+            continue
+        points = np.array(poly["segmentation"])
+        points = points.reshape((-1, 2)).astype(np.int32)
+        points = points[np.newaxis, :]
+        mask = cv.fillPoly(np.zeros(image.shape[:2]), points, 255).astype(np.uint8)
+        mean_v, std_v = cv.meanStdDev(image, mask=mask)
+        # skew_v = masked_skewness(image, mask)
+        # kurtosis_v = masked_kurtosis(image, mask)
+        color_moments[idx].extend(mean_v[0:1, 0])
+        color_moments[idx].extend(std_v[0:1, 0])
+        # color_moments[idx].extend(skew_v[0:3])
+        # color_moments[idx].extend(kurtosis_v[0:3])
+
+    color_moment_arr = np.array(list(color_moments.values()))
+    color_moments_arr_norm = color_moment_arr - np.mean(color_moment_arr, axis=0)
+    color_moments_arr_norm = color_moments_arr_norm / np.std(color_moments_arr_norm, axis=0)
+    return color_moments_arr_norm
+
+def get_histograms(image, d_dict):
+    histograms = defaultdict(list)
+    for idx, poly in enumerate(d_dict["annotations"]):
+        if poly["category_id"] == 1:
+        # Volumes are considered part of the wall, not part of a route -> skip
+            continue
+        points = np.array(poly["segmentation"])
+        points = points.reshape((-1, 2)).astype(np.int32)
+        points = points[np.newaxis, :]
+        mask = cv.fillPoly(np.zeros(image.shape[:2]), points, 255).astype(np.uint8)
+        hist0 = cv.calcHist([image], [0], mask=mask, histSize=[256], ranges=[0, 256])
+        hist1 = cv.calcHist([image], [1], mask=mask, histSize=[256], ranges=[0, 256])
+        hist2 = cv.calcHist([image], [2], mask=mask, histSize=[256], ranges=[0, 256])
+        hist = np.array([hist0])
+        histograms[idx] = hist.flatten()
+
+    histograms_arr = np.array(list(histograms.values()))
+    histograms_arr_norm = histograms_arr - np.mean(histograms_arr, axis=0)
+    histograms_arr_norm = np.nan_to_num(
+    histograms_arr_norm / np.std(histograms_arr_norm, axis=0)
+    )
+    return histograms_arr_norm
+
