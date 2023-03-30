@@ -92,13 +92,12 @@ def create_dataset_dicts(
     @param img_dir: Image dir
     @param annotation_filename: filename of annotation json
     @param skip_no_routes: If True images without route annotations are skipped
-    
     """
     hold_class_mapping = {"hold": 0, "volume": 1}
     annotation_json = os.path.join(img_dir, annotation_filename)
     with open(annotation_json, "r") as f:
         img_annotations = json.load(f)["_via_img_metadata"]
-    dataset = []
+    dataset = {}
     for id, image in enumerate(img_annotations.values()):
         if not image["regions"]:
             # Skip images that have no region annotation, i.e. not annotated images
@@ -151,7 +150,7 @@ def create_dataset_dicts(
             }
             annotation_objects.append(annotation_obj)
         record["annotations"] = annotation_objects
-        dataset.append(record)
+        dataset[image_filename] = record
     return dataset
 
 
